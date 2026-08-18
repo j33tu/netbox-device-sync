@@ -5,21 +5,21 @@ on:
   schedule:
     - cron: "0 0 * * 1"
 
-  # 2. Runs whenever config/vendors.yml or config/device_roles.yml is updated and merged into main
+  # 2. Runs whenever inputs/vendors.yml or inputs/device_roles.yml is updated and merged into main
   push:
     branches:
       - main
     paths:
-      - "config/vendors.yml"
-      - "config/device_roles.yml"
+      - "inputs/vendors.yml"
+      - "inputs/device_roles.yml"
 
   # 3. Runs a test check on Pull Requests that modify input YAML files
   pull_request:
     branches:
       - main
     paths:
-      - "config/vendors.yml"
-      - "config/device_roles.yml"
+      - "inputs/vendors.yml"
+      - "inputs/device_roles.yml"
 
   # 4. Allows manual execution anytime from GitHub UI
   workflow_dispatch:

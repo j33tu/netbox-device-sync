@@ -18,7 +18,7 @@ if not NETBOX_URL or not NETBOX_TOKEN:
 
 nb = pynetbox.api(NETBOX_URL, token=NETBOX_TOKEN)
 
-def load_vendor_config(config_path="config/vendors.yml"):
+def load_vendor_config(config_path="inputs/vendors.yml"):
     with open(config_path, "r", encoding="utf-8") as f:
         return yaml.safe_load(f)
 
