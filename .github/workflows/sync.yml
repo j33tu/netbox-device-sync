@@ -1,0 +1,35 @@
+name: NetBox Device Type Sync
+
+on:
+  schedule:
+    # Runs automatically every Monday at 00:00 UTC
+    - cron: "0 0 * * 1"
+
+  # Allows manual runs anytime from the Actions tab
+  workflow_dispatch:
+
+jobs:
+  sync:
+    name: Sync Device Types
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run NetBox Sync Script
+        env:
+          NETBOX_URL: ${{ secrets.NETBOX_URL }}
+          NETBOX_TOKEN: ${{ secrets.NETBOX_TOKEN }}
+        run: python scripts/sync.py
