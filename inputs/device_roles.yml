@@ -23,3 +23,9 @@ device_roles:
     color: 9c27b0
     description: Temporary role to test automated Git sync workflow
     vm_role: false
+
+  - name: CI g2 Role
+    slug: ci-test-role
+    color: 9c27b0
+    description: Temporary role to test automated Git sync workflow
+    vm_role: false
