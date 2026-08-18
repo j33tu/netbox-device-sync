@@ -16,3 +16,8 @@ regions:
             status: active
             facility: AT&T TY1
             time_zone: Asia/Tokyo
+          - name: Tokyo 03 # NEW site added by user in Git
+            slug: tok03
+            status: active
+            facility: AT&T TY1
+            time_zone: Asia/Tokyo
