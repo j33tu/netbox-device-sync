@@ -7,3 +7,7 @@ vendors:
   - name: "Cisco"
     directory: "Cisco"
     enabled: true
+
+  - name: "Juniper"
+    directory: "Cisco"
+    enabled: true
