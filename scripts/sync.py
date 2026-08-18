@@ -1,6 +1,5 @@
 import os
 import sys
-import shutil
 import tempfile
 import yaml
 import subprocess
@@ -20,7 +19,7 @@ if not NETBOX_URL or not NETBOX_TOKEN:
 nb = pynetbox.api(NETBOX_URL, token=NETBOX_TOKEN)
 
 def load_vendor_config(config_path="config/vendors.yml"):
-    with open(config_path, "r") as f:
+    with open(config_path, "r", encoding="utf-8") as f:
         return yaml.safe_load(f)
 
 def fetch_latest_library(target_dir):
@@ -48,26 +47,23 @@ def sync_vendor_device_types(vendor, library_path):
         print(f"Warning: Directory '{v_dir}' not found in library. Skipping {v_name}.")
         return
 
-    # Check for existing Manufacturer by name OR slug to prevent duplicate slug 400 errors
+    # Look up Manufacturer by name OR slug to prevent duplicate slug 400 errors
     manufacturer = nb.dcim.manufacturers.get(name=v_name) or nb.dcim.manufacturers.get(slug=v_slug)
 
     if not manufacturer:
         print(f"Manufacturer '{v_name}' not found in NetBox. Creating...")
-        manufacturer = nb.dcim.manufacturers.create(
-            name=v_name, 
-            slug=v_slug
-        )
+        manufacturer = nb.dcim.manufacturers.create(name=v_name, slug=v_slug)
     else:
         print(f"Using existing Manufacturer in NetBox: '{manufacturer.name}' (ID: {manufacturer.id})")
 
-    # Cache existing NetBox device types for this manufacturer
+    # Cache existing device types for this manufacturer (keyed by model name)
     existing_types = {
         dt.model: dt for dt in nb.dcim.device_types.filter(manufacturer_id=manufacturer.id)
     }
 
-    checked, skipped, created, errors = 0, 0, 0, 0
+    checked, skipped, created, updated, errors = 0, 0, 0, 0, 0
 
-    # Walk vendor directory for YAML definitions
+    # Walk through vendor directory for YAML definitions
     for root, _, files in os.walk(vendor_path):
         for file in files:
             if not file.endswith((".yaml", ".yml")):
@@ -83,45 +79,68 @@ def sync_vendor_device_types(vendor, library_path):
                 if not model:
                     continue
 
-                if model in existing_types:
-                    skipped += 1
-                    continue
-
-                # Core NetBox Device Type payload
-                payload = {
-                    "manufacturer": manufacturer.id,
-                    "model": dt_data.get("model"),
+                # Map attributes from Data Exchange YAML
+                desired_attributes = {
                     "slug": dt_data.get("slug"),
                     "part_number": dt_data.get("part_number", ""),
                     "u_height": dt_data.get("u_height", 1),
                     "is_full_depth": dt_data.get("is_full_depth", True),
-                    "comments": dt_data.get("comments", "Synced from Data Exchange"),
                 }
 
-                # Optional metadata parameters from Data Exchange YAMLs
                 if "airflow" in dt_data:
-                    payload["airflow"] = dt_data["airflow"]
+                    desired_attributes["airflow"] = dt_data["airflow"]
 
                 if "weight" in dt_data:
-                    payload["weight"] = dt_data["weight"]
-                    payload["weight_unit"] = dt_data.get("weight_unit", "kg")
+                    desired_attributes["weight"] = float(dt_data["weight"])
+                    desired_attributes["weight_unit"] = dt_data.get("weight_unit", "kg")
 
                 if "description" in dt_data:
-                    payload["description"] = dt_data["description"]
+                    desired_attributes["description"] = dt_data["description"]
 
-                nb.dcim.device_types.create(payload)
-                created += 1
-                print(f"  [CREATED] {model}")
+                # CASE 1: Device Type exists in NetBox -> Check for field updates
+                if model in existing_types:
+                    existing_dt = existing_types[model]
+                    changes = {}
+
+                    for key, desired_value in desired_attributes.items():
+                        current_value = getattr(existing_dt, key, None)
+
+                        # Handle None vs empty string equivalence
+                        if current_value is None and desired_value == "":
+                            continue
+
+                        if current_value != desired_value:
+                            changes[key] = desired_value
+
+                    if changes:
+                        existing_dt.update(changes)
+                        updated += 1
+                        print(f"  [UPDATED] {model} -> Fields changed: {list(changes.keys())}")
+                    else:
+                        skipped += 1
+
+                # CASE 2: Device Type does not exist -> Create entry
+                else:
+                    payload = {
+                        "manufacturer": manufacturer.id,
+                        "model": model,
+                        "comments": dt_data.get("comments", "Synced from Data Exchange"),
+                        **desired_attributes
+                    }
+                    nb.dcim.device_types.create(payload)
+                    created += 1
+                    print(f"  [CREATED] {model}")
 
             except Exception as e:
                 errors += 1
                 print(f"  [ERROR] Failed to process {file}: {e}")
 
     print(f"\n--- {v_name} Summary ---")
-    print(f"Checked:         {checked}")
-    print(f"Already Present: {skipped}")
-    print(f"Created:         {created}")
-    print(f"Errors:          {errors}\n")
+    print(f"Checked:   {checked}")
+    print(f"Unchanged: {skipped}")
+    print(f"Created:   {created}")
+    print(f"Updated:   {updated}")
+    print(f"Errors:    {errors}\n")
 
 def main():
     config = load_vendor_config()
@@ -131,7 +150,7 @@ def main():
         print("No vendors enabled for synchronization.")
         return
 
-    # Use a clean temp folder for cloning every run
+    # Clone the Data Exchange repo to a isolated temporary directory for execution
     with tempfile.TemporaryDirectory() as temp_dir:
         fetch_latest_library(temp_dir)
 
