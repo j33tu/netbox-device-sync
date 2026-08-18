@@ -1,0 +1,18 @@
+regions:
+  - name: Asia-Pacific
+    slug: apac
+    child_regions:
+      - name: Japan
+        slug: jpn
+        sites:
+          - name: Tokyo 01 # Existing site (script will update/verify)
+            slug: tok01
+            status: active
+            facility: Equinix TY3
+            time_zone: Asia/Tokyo
+
+          - name: Tokyo 02 # NEW site added by user in Git
+            slug: tok02
+            status: active
+            facility: AT&T TY1
+            time_zone: Asia/Tokyo
