@@ -17,3 +17,9 @@ device_roles:
     color: 8a2be2
     description: Cloud-hosted virtual routing instance
     vm_role: true
+
+  - name: CI Test Role
+    slug: ci-test-role
+    color: 9c27b0
+    description: Temporary role to test automated Git sync workflow
+    vm_role: false
