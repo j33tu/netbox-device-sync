@@ -1,11 +1,25 @@
 name: NetBox Device Type Sync
 
 on:
+  # 1. Runs automatically on scheduled cron (Every Monday at midnight)
   schedule:
-    # Runs automatically every Monday at 00:00 UTC
     - cron: "0 0 * * 1"
 
-  # Allows manual runs anytime from the Actions tab
+  # 2. Runs whenever config/vendors.yml is updated and merged into main
+  push:
+    branches:
+      - main
+    paths:
+      - "config/vendors.yml"
+
+  # 3. Runs a test check on Pull Requests that modify config/vendors.yml
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "config/vendors.yml"
+
+  # 4. Allows manual execution anytime from GitHub UI
   workflow_dispatch:
 
 jobs:
@@ -14,7 +28,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout Code
+      - name: Checkout Repository
         uses: actions/checkout@v4
 
       - name: Set up Python
