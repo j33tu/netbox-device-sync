@@ -1,0 +1,9 @@
+# Map the Git library directory name to your NetBox Manufacturer name/slug
+vendors:
+  - name: "HPE"
+    directory: "HPE"
+    enabled: true
+
+  - name: "Cisco"
+    directory: "Cisco"
+    enabled: true
