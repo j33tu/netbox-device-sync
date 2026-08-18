@@ -3,11 +3,9 @@ import sys
 import shutil
 import tempfile
 import yaml
+import subprocess
 import pynetbox
 from dotenv import load_dotenv
-#from git import Repo  # Optional: install GitPython, or use subprocess
-
-import subprocess
 
 load_dotenv()
 
@@ -26,8 +24,8 @@ def load_vendor_config(config_path="config/vendors.yml"):
         return yaml.safe_load(f)
 
 def fetch_latest_library(target_dir):
-    """Clones or updates the official NetBox Device Type Library."""
-    print(f"Fetching latest Device Type Library from GitHub...")
+    """Clones the official NetBox Device Type Library."""
+    print("Fetching latest Device Type Library from GitHub...")
     subprocess.run(
         ["git", "clone", "--depth", "1", DATA_EXCHANGE_REPO, target_dir],
         check=True,
@@ -43,29 +41,33 @@ def parse_yaml_file(filepath):
 def sync_vendor_device_types(vendor, library_path):
     v_name = vendor["name"]
     v_dir = vendor["directory"]
+    v_slug = v_name.lower().replace(" ", "-")
     vendor_path = os.path.join(library_path, "device-types", v_dir)
 
     if not os.path.exists(vendor_path):
         print(f"Warning: Directory '{v_dir}' not found in library. Skipping {v_name}.")
         return
 
-    # Ensure Manufacturer exists in NetBox
-    manufacturer = nb.dcim.manufacturers.get(name=v_name)
+    # Check for existing Manufacturer by name OR slug to prevent duplicate slug 400 errors
+    manufacturer = nb.dcim.manufacturers.get(name=v_name) or nb.dcim.manufacturers.get(slug=v_slug)
+
     if not manufacturer:
         print(f"Manufacturer '{v_name}' not found in NetBox. Creating...")
         manufacturer = nb.dcim.manufacturers.create(
             name=v_name, 
-            slug=v_name.lower().replace(" ", "-")
+            slug=v_slug
         )
+    else:
+        print(f"Using existing Manufacturer in NetBox: '{manufacturer.name}' (ID: {manufacturer.id})")
 
-    # Cache existing NetBox device types for this manufacturer (keyed by model)
+    # Cache existing NetBox device types for this manufacturer
     existing_types = {
         dt.model: dt for dt in nb.dcim.device_types.filter(manufacturer_id=manufacturer.id)
     }
 
     checked, skipped, created, errors = 0, 0, 0, 0
 
-    # Walk directory for .yaml / .yml files
+    # Walk vendor directory for YAML definitions
     for root, _, files in os.walk(vendor_path):
         for file in files:
             if not file.endswith((".yaml", ".yml")):
@@ -85,7 +87,7 @@ def sync_vendor_device_types(vendor, library_path):
                     skipped += 1
                     continue
 
-                # Prepare payload for NetBox API
+                # Core NetBox Device Type payload
                 payload = {
                     "manufacturer": manufacturer.id,
                     "model": dt_data.get("model"),
@@ -95,6 +97,17 @@ def sync_vendor_device_types(vendor, library_path):
                     "is_full_depth": dt_data.get("is_full_depth", True),
                     "comments": dt_data.get("comments", "Synced from Data Exchange"),
                 }
+
+                # Optional metadata parameters from Data Exchange YAMLs
+                if "airflow" in dt_data:
+                    payload["airflow"] = dt_data["airflow"]
+
+                if "weight" in dt_data:
+                    payload["weight"] = dt_data["weight"]
+                    payload["weight_unit"] = dt_data.get("weight_unit", "kg")
+
+                if "description" in dt_data:
+                    payload["description"] = dt_data["description"]
 
                 nb.dcim.device_types.create(payload)
                 created += 1
@@ -118,7 +131,7 @@ def main():
         print("No vendors enabled for synchronization.")
         return
 
-    # Temporary directory for clean git clone every run
+    # Use a clean temp folder for cloning every run
     with tempfile.TemporaryDirectory() as temp_dir:
         fetch_latest_library(temp_dir)
 
