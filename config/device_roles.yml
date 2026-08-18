@@ -1,0 +1,19 @@
+# User input file for NetBox Device Roles
+device_roles:
+  - name: Access Switch
+    slug: access-switch
+    color: 00bfff
+    description: Access layer network switch
+    vm_role: false
+
+  - name: Firewall
+    slug: firewall
+    color: ff4500
+    description: Perimeter security appliance
+    vm_role: false
+
+  - name: Virtual Router
+    slug: v-router
+    color: 8a2be2
+    description: Cloud-hosted virtual routing instance
+    vm_role: true

@@ -1,30 +1,32 @@
-name: NetBox Device Type Sync
+name: NetBox Device Type & Roles Sync
 
 on:
   # 1. Runs automatically on scheduled cron (Every Monday at midnight)
   schedule:
     - cron: "0 0 * * 1"
 
-  # 2. Runs whenever config/vendors.yml is updated and merged into main
+  # 2. Runs whenever config/vendors.yml or config/device_roles.yml is updated and merged into main
   push:
     branches:
       - main
     paths:
       - "config/vendors.yml"
+      - "config/device_roles.yml"
 
-  # 3. Runs a test check on Pull Requests that modify config/vendors.yml
+  # 3. Runs a test check on Pull Requests that modify input YAML files
   pull_request:
     branches:
       - main
     paths:
       - "config/vendors.yml"
+      - "config/device_roles.yml"
 
   # 4. Allows manual execution anytime from GitHub UI
   workflow_dispatch:
 
 jobs:
   sync:
-    name: Sync Device Types
+    name: Sync NetBox Inputs
     runs-on: ubuntu-latest
 
     steps:
@@ -42,7 +44,13 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Run NetBox Sync Script
+      - name: Run NetBox Device Roles Sync
+        env:
+          NETBOX_URL: ${{ secrets.NETBOX_URL }}
+          NETBOX_TOKEN: ${{ secrets.NETBOX_TOKEN }}
+        run: python scripts/sync_roles.py
+
+      - name: Run NetBox Device Types Sync
         env:
           NETBOX_URL: ${{ secrets.NETBOX_URL }}
           NETBOX_TOKEN: ${{ secrets.NETBOX_TOKEN }}
