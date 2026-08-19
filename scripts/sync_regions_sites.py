@@ -115,7 +115,7 @@ def get_or_create_location(name: str, site_id: int, parent_id: int = None):
 
 
 def get_or_create_rack(rack_name: str, site_id: int, location_id: int, u_height: int = 42):
-    """Fetches or creates a rack within a specific Location in NetBox."""
+    """Fetches or creates a rack strictly inside its corresponding Location."""
     slug = slugify(rack_name)
     rack = nb.dcim.racks.get(site_id=site_id, name=rack_name) or nb.dcim.racks.get(site_id=site_id, slug=slug)
 
@@ -135,10 +135,10 @@ def get_or_create_rack(rack_name: str, site_id: int, location_id: int, u_height:
             rack = nb.dcim.racks.get(site_id=site_id, name=rack_name)
             print(f"        ✓ Found Rack: {rack_name}")
     else:
-        # Ensure correct location assignment
+        # Force update rack to point to its current location
         if not rack.location or rack.location.id != location_id:
             rack.update({"location": location_id})
-            print(f"        ✓ Updated Location for Rack: {rack_name}")
+            print(f"        ✓ Re-assigned Location for Rack: {rack_name}")
         else:
             print(f"        ✓ Found Rack: {rack_name}")
 
@@ -175,52 +175,48 @@ def main():
         site_code = format_site_code(raw_site_name)
         print(f"\nProcessing: {region_name} > {sub_region_name} > {site_code} (from '{raw_site_name}')")
 
-        # 1. Regions
+        # 1. Regions & Site
         parent_region = get_or_create_region(region_name)
         sub_region = get_or_create_region(sub_region_name, parent_id=parent_region.id)
-
-        # 2. Site
         site = sync_site(site_code, sub_region.id, entry)
 
-        # 3. Extract Floor & Rack Specifications
-        idf_floors = [str(f).strip() for f in entry.get("floors", [])]
+        # 2. Convert ALL floor representations strictly to integers for safe comparison
+        idf_floors = [int(f) for f in entry.get("floors", [])]
         raw_mdf_floor = entry.get("mdf_floor")
-        mdf_floor_str = str(raw_mdf_floor).strip() if raw_mdf_floor is not None else None
+        mdf_floor = int(raw_mdf_floor) if raw_mdf_floor is not None else None
 
         num_idf_racks = int(entry.get("idf_racks_per_room", 1))
         num_mdf_racks = int(entry.get("mdf_racks_per_room", 1))
 
-        # Build total list of unique floors to process
+        # Build unique integer floor list
         all_floors = set(idf_floors)
-        if mdf_floor_str:
-            all_floors.add(mdf_floor_str)
+        if mdf_floor is not None:
+            all_floors.add(mdf_floor)
 
-        sorted_floors = sorted(list(all_floors), key=lambda x: int(x) if x.isdigit() else x)
+        sorted_floors = sorted(list(all_floors))
 
-        # 4. Generate Locations & Racks
-        for raw_floor in sorted_floors:
-            floor_str = str(raw_floor).zfill(2)
+        # 3. Process Each Floor Independently
+        for floor_num in sorted_floors:
+            floor_str = str(floor_num).zfill(2)
 
-            # Parent Floor Location: AMS01-03
+            # Parent Floor Location: LON01-01
             floor_location_name = f"{site.name}-{floor_str}"
             floor_loc = get_or_create_location(floor_location_name, site_id=site.id)
 
             # Process IDF Room & Racks
-            if raw_floor in idf_floors:
+            if floor_num in idf_floors:
                 idf_location_name = f"{floor_location_name}-IDF"
                 idf_loc = get_or_create_location(idf_location_name, site_id=site.id, parent_id=floor_loc.id)
 
-                # Create requested number of IDF Racks (e.g., AMS01-03-R01, AMS01-03-R02)
                 for r_num in range(1, num_idf_racks + 1):
                     rack_name = f"{floor_location_name}-R{str(r_num).zfill(2)}"
                     get_or_create_rack(rack_name, site_id=site.id, location_id=idf_loc.id)
 
             # Process MDF Room & Racks
-            if mdf_floor_str and raw_floor == mdf_floor_str:
+            if mdf_floor is not None and floor_num == mdf_floor:
                 mdf_location_name = f"{floor_location_name}-MDF"
                 mdf_loc = get_or_create_location(mdf_location_name, site_id=site.id, parent_id=floor_loc.id)
 
-                # Create requested number of MDF Racks (e.g., AMS01-03-MR01, AMS01-03-MR02)
                 for r_num in range(1, num_mdf_racks + 1):
                     rack_name = f"{floor_location_name}-MR{str(r_num).zfill(2)}"
                     get_or_create_rack(rack_name, site_id=site.id, location_id=mdf_loc.id)
