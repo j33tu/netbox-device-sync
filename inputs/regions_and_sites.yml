@@ -1,23 +1,27 @@
-regions:
-  - name: Asia-Pacific
-    slug: apac
-    child_regions:
-      - name: Japan
-        slug: jpn
-        sites:
-          - name: Tokyo 01 # Existing site (script will update/verify)
-            slug: tok01
-            status: active
-            facility: Equinix TY3
-            time_zone: Asia/Tokyo
+sites:
+  - region: EMEA
+    sub_region: NL
+    site_name: AMS01
+    facility: Equinix AM3
+    time_zone: Europe/Amsterdam
+    floors: [3, 6]
 
-          - name: Tokyo 02 # NEW site added by user in Git
-            slug: tok02
-            status: active
-            facility: AT&T TY1
-            time_zone: Asia/Tokyo
-          - name: Tokyo 03 # NEW site added by user in Git
-            slug: tok03
-            status: active
-            facility: AT&T TY1
-            time_zone: Asia/Tokyo
+  - region: Asia-Pacific
+    sub_region: Japan
+    site_name: TOK01
+    facility: Equinix TY3
+    time_zone: Asia/Tokyo
+    floors: [1, 2, 5]
+    mdf_floor: 6
+    idf_racks_per_room: 2
+    mdf_racks_per_room: 3
+
+  - region: Asia-Pacific
+    sub_region: INDIA
+    site_name: BLR01
+    facility: Equinix TY3
+    time_zone: Asia/Tokyo
+    floors: [1, 7, 8, 9]
+    mdf_floor: 1
+    idf_racks_per_room: 1
+    mdf_racks_per_room: 2
