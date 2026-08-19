@@ -5,6 +5,9 @@ sites:
     facility: Equinix AM3
     time_zone: Europe/Amsterdam
     floors: [3, 6]
+    mdf_floor: 3
+    idf_racks_per_room: 1
+    mdf_racks_per_room: 2
 
   - region: Asia-Pacific
     sub_region: Japan

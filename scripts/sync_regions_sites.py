@@ -3,8 +3,12 @@ import sys
 import re
 from pathlib import Path
 import yaml
+import urllib3
 import pynetbox
 from pynetbox.core.query import RequestError
+
+# Disable insecure HTTPS request warnings
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 # ---------------------------------------------------------------------------
 # 1. NetBox API Configuration
@@ -18,6 +22,7 @@ if not NETBOX_URL or not NETBOX_TOKEN:
 
 nb = pynetbox.api(NETBOX_URL, token=NETBOX_TOKEN)
 nb.http_session.verify = False
+
 
 # ---------------------------------------------------------------------------
 # 2. Helpers
@@ -60,7 +65,7 @@ def get_or_create_region(name: str, parent_id: int = None):
             print(f"  ✓ Updated Region Parent for: '{name}'")
         else:
             print(f"  ✓ Found Region: '{name}' ({slug})")
-            
+
     return region
 
 
@@ -77,7 +82,7 @@ def sync_site(formatted_code: str, sub_region_id: int, site_meta: dict):
     }
 
     site = nb.dcim.sites.get(slug=slug) or nb.dcim.sites.get(name=formatted_code)
-    
+
     if not site:
         try:
             site = nb.dcim.sites.create(payload)
@@ -89,12 +94,12 @@ def sync_site(formatted_code: str, sub_region_id: int, site_meta: dict):
         payload["region"] = sub_region_id
         site.update(payload)
         print(f"    ✓ Updated Site: {formatted_code}")
-        
+
     return site
 
 
 def get_or_create_location(name: str, site_id: int, parent_id: int = None):
-    """Fetches or creates parent and child locations."""
+    """Fetches or creates parent (Floor) and child (IDF/MDF) locations."""
     slug = slugify(name)
     location = nb.dcim.locations.get(site_id=site_id, slug=slug) or nb.dcim.locations.get(site_id=site_id, name=name)
 
@@ -110,12 +115,12 @@ def get_or_create_location(name: str, site_id: int, parent_id: int = None):
             print(f"      ✓ Found Location: {name}")
     else:
         print(f"      ✓ Found Location: {name}")
-        
+
     return location
 
 
 def get_or_create_rack(rack_name: str, site_id: int, location_id: int, u_height: int = 42):
-    """Fetches or creates a rack strictly inside its corresponding Location."""
+    """Fetches or creates a rack and explicitly links it to the sub-location ID (IDF/MDF)."""
     slug = slugify(rack_name)
     rack = nb.dcim.racks.get(site_id=site_id, name=rack_name) or nb.dcim.racks.get(site_id=site_id, slug=slug)
 
@@ -126,26 +131,26 @@ def get_or_create_rack(rack_name: str, site_id: int, location_id: int, u_height:
             "site": site_id,
             "location": location_id,
             "u_height": u_height,
-            "status": "active"
+            "status": "active",
         }
         try:
             rack = nb.dcim.racks.create(data)
             print(f"        + Created Rack: {rack_name}")
-        except RequestError:
-            rack = nb.dcim.racks.get(site_id=site_id, name=rack_name)
-            print(f"        ✓ Found Rack: {rack_name}")
+        except RequestError as e:
+            print(f"        ! Error creating Rack {rack_name}: {e}")
     else:
-        # Force update rack to point to its current location
-        if not rack.location or rack.location.id != location_id:
+        current_loc_id = rack.location.id if rack.location else None
+        if current_loc_id != location_id:
             rack.update({"location": location_id})
-            print(f"        ✓ Re-assigned Location for Rack: {rack_name}")
+            print(f"        ✓ Fixed Location Mapping for Rack: {rack_name}")
         else:
-            print(f"        ✓ Found Rack: {rack_name}")
+            print(f"        ✓ Found Rack in location: {rack_name}")
 
     return rack
 
+
 # ---------------------------------------------------------------------------
-# 3. Main Logic
+# 3. Execution Pipeline
 # ---------------------------------------------------------------------------
 def main():
     BASE_DIR = Path(__file__).resolve().parent.parent
@@ -180,7 +185,7 @@ def main():
         sub_region = get_or_create_region(sub_region_name, parent_id=parent_region.id)
         site = sync_site(site_code, sub_region.id, entry)
 
-        # 2. Convert ALL floor representations strictly to integers for safe comparison
+        # 2. Convert floor entries to integers
         idf_floors = [int(f) for f in entry.get("floors", [])]
         raw_mdf_floor = entry.get("mdf_floor")
         mdf_floor = int(raw_mdf_floor) if raw_mdf_floor is not None else None
@@ -188,22 +193,22 @@ def main():
         num_idf_racks = int(entry.get("idf_racks_per_room", 1))
         num_mdf_racks = int(entry.get("mdf_racks_per_room", 1))
 
-        # Build unique integer floor list
+        # Collect unique floor numbers
         all_floors = set(idf_floors)
         if mdf_floor is not None:
             all_floors.add(mdf_floor)
 
         sorted_floors = sorted(list(all_floors))
 
-        # 3. Process Each Floor Independently
+        # 3. Create Locations & Place Racks
         for floor_num in sorted_floors:
             floor_str = str(floor_num).zfill(2)
 
-            # Parent Floor Location: LON01-01
+            # Parent Floor Location (e.g., LON01-11)
             floor_location_name = f"{site.name}-{floor_str}"
             floor_loc = get_or_create_location(floor_location_name, site_id=site.id)
 
-            # Process IDF Room & Racks
+            # IDF Room & Racks
             if floor_num in idf_floors:
                 idf_location_name = f"{floor_location_name}-IDF"
                 idf_loc = get_or_create_location(idf_location_name, site_id=site.id, parent_id=floor_loc.id)
@@ -212,14 +217,15 @@ def main():
                     rack_name = f"{floor_location_name}-R{str(r_num).zfill(2)}"
                     get_or_create_rack(rack_name, site_id=site.id, location_id=idf_loc.id)
 
-            # Process MDF Room & Racks
+            # MDF Room & Racks (Using same R01, R02 scheme attached to -MDF location)
             if mdf_floor is not None and floor_num == mdf_floor:
                 mdf_location_name = f"{floor_location_name}-MDF"
                 mdf_loc = get_or_create_location(mdf_location_name, site_id=site.id, parent_id=floor_loc.id)
 
                 for r_num in range(1, num_mdf_racks + 1):
-                    rack_name = f"{floor_location_name}-MR{str(r_num).zfill(2)}"
+                    rack_name = f"{floor_location_name}-R{str(r_num).zfill(2)}"
                     get_or_create_rack(rack_name, site_id=site.id, location_id=mdf_loc.id)
+
 
 if __name__ == "__main__":
     main()
