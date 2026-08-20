@@ -5,7 +5,7 @@ sites:
     facility: Equinix AM3
     time_zone: Europe/Amsterdam
     floors: [3, 6]
-    mdf_floor: 3
+    mdf_floor: 4
     idf_racks_per_room: 1
     mdf_racks_per_room: 2
 
@@ -25,7 +25,7 @@ sites:
     facility: Equinix TY3
     time_zone: Asia/Tokyo
     floors: [1, 7, 8, 9]
-    mdf_floor: 1
+    mdf_floor: 2
     idf_racks_per_room: 1
     mdf_racks_per_room: 2
 
