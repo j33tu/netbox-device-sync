@@ -1,0 +1,11 @@
+# Device Testing Input Schema
+device_name: "FIZ01-06-SW01"
+site_code: "FIZ01"
+floor: "03"
+room_type: "IDF" # Maps to sub-location: FIZ01-06-MDF
+rack_name: "FIZ01-03-R01"
+rack_position: 40 # U-position in rack
+manufacturer: "Cisco"
+model: "Catalyst 9300-48P" # Device Type Model Name
+role: "Access Switch"
+primary_ip: "10.26.248.10/21"

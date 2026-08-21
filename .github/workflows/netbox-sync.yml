@@ -1,0 +1,44 @@
+name: NetBox Multi-Site Provisioner
+
+on:
+  workflow_dispatch:
+    inputs:
+      site_code:
+        description: "Site Name (e.g. FIZ01)"
+        required: true
+      site_code_numeric:
+        description: "Numeric Site IP Code (e.g. 26)"
+        required: true
+      region:
+        description: "Region (e.g. ANZ)"
+        default: "ANZ"
+        required: true
+      subregion:
+        description: "Subregion (e.g. FIZ)"
+        default: "FIZ"
+        required: true
+      facility:
+        description: "Facility Name (e.g. Equinix SY3)"
+        required: true
+      mdf_floor:
+        description: "MDF Floor Number (e.g. 6)"
+        required: true
+      mdf_racks:
+        description: "Number of Racks in MDF"
+        default: "2"
+        required: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install pynetbox pyyaml
+      - name: Run NetBox Builder
+        env:
+          NETBOX_URL: ${{ secrets.NETBOX_URL }}
+          NETBOX_TOKEN: ${{ secrets.NETBOX_TOKEN }}
+        run: python deploy.py

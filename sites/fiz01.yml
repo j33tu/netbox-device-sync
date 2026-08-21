@@ -1,0 +1,18 @@
+region: "ANZ"
+subregion: "FIZ"
+site_code: "FIZ01"
+facility: "Corporate"
+time_zone: "Australia/Sydney"
+
+# Numeric site code for IPAM calculation (10.<site_code_numeric>.<vlan_id>.0/21)
+site_code_numeric: 26
+
+mdf:
+  floor: 6
+  racks: 2
+
+idfs:
+  - floor: 3
+    racks: 3
+  - floor: 4
+    racks: 2

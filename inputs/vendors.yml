@@ -1,0 +1,9 @@
+# provide vendor to sync
+vendors:
+  - name: "HPE"
+    directory: "HPE"
+    enabled: true
+
+  - name: "Cisco"
+    directory: "Cisco"
+    enabled: true
