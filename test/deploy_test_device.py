@@ -155,4 +155,4 @@ def provision_device_from_yaml(filepath):
     return True
 
 if __name__ == "__main__":
-    provision_device_from_yaml("./inputs/test_device.yml")
+    provision_device_from_yaml("test_device.yml")
