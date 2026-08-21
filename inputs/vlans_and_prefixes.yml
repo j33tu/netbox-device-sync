@@ -1,0 +1,41 @@
+vlan_allocations:
+  - site_code: "AMS01"
+    vlan_id: 10
+    vlan_name: "MGMT"
+    cidr: "10.100.10.0/24"
+    status: "active"
+    gateway: "first"
+
+  - site_code: "AMS01"
+    vlan_id: 20
+    vlan_name: "Corp"
+    cidr: "10.100.20.0/24"
+    status: "active"
+    gateway: "first"
+
+  - site_code: "AMS01"
+    vlan_id: 30
+    vlan_name: "IoT"
+    cidr: "10.100.30.0/24"
+    status: "active"
+    gateway: "first"
+
+  - site_code: "AMS01"
+    vlan_id: 40
+    vlan_name: "Security"
+    cidr: "10.100.40.0/24"
+    status: "active"
+    gateway: "first"
+
+  - site_code: "AMS01"
+    vlan_id: 50
+    vlan_name: "AV"
+    cidr: "10.100.50.0/24"
+    status: "inactive" # Set status to active or inactive
+
+  - site_code: "AMS01"
+    vlan_id: 60
+    vlan_name: "Guest"
+    cidr: "10.100.60.0/24"
+    status: "active"
+    gateway: "first"

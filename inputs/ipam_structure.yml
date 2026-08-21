@@ -1,0 +1,15 @@
+ipam_allocations:
+  - site_code: "AMS01"
+    cidr: "10.100.1.0/24"
+    role: "User Data"
+    vrf: "Global"
+    gateway: "first" # Options: first (.1), last (.254), or "none"
+    pools:
+      - description: "dhcp"
+        start_offset: 10 # Resolves to 10.100.1.10/24
+        end_offset: 200 # Resolves to 10.100.1.200/24
+        status: "active"
+      - description: "reserved"
+        start_offset: 201 # Resolves to 10.100.1.201/24
+        end_offset: 254 # Resolves to 10.100.1.254/24
+        status: "reserved"
